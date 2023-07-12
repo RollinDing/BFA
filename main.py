@@ -36,7 +36,7 @@ parser.add_argument('--data_path',
 parser.add_argument(
     '--dataset',
     type=str,
-    choices=['cifar10', 'cifar100', 'imagenet', 'svhn', 'stl10', 'mnist'],
+    choices=['cifar10', 'cifar100', 'imagenet', 'svhn', 'stl10', 'mnist', 'usps'],
     help='Choose between Cifar10/100 and ImageNet.')
 parser.add_argument('--arch',
                     metavar='ARCH',
@@ -235,6 +235,9 @@ def main():
     elif args.dataset == 'mnist':
         mean = [0.5, 0.5, 0.5]
         std = [0.5, 0.5, 0.5]
+    elif args.dataset == 'usps':
+        mean = [0.5, 0.5, 0.5]
+        std = [0.5, 0.5, 0.5]
     elif args.dataset == 'imagenet':
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
@@ -254,6 +257,19 @@ def main():
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
         ])  # here is actually the validation dataset
+    elif args.dataset == 'mnist' or args.dataset == 'usps':
+        train_transform = transforms.Compose([
+            transforms.Resize((32, 32)),
+            transforms.Grayscale(num_output_channels=3),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)  # normalize to match the CIFAR10 dataset
+        ])
+        test_transform = transforms.Compose([
+            transforms.Resize((32, 32)),
+            transforms.Grayscale(num_output_channels=3),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)  # normalize to match the CIFAR10 dataset
+        ])
     else:
         train_transform = transforms.Compose([
             transforms.RandomHorizontalFlip(),
@@ -274,6 +290,16 @@ def main():
                                train=False,
                                transform=test_transform,
                                download=True)
+        num_classes = 10
+    elif args.dataset == 'usps':
+        train_data = dset.USPS(args.data_path,
+                                train=True,
+                                transform=train_transform,
+                                download=True)
+        test_data = dset.USPS(args.data_path,
+                                train=False,
+                                transform=test_transform,
+                                download=True)
         num_classes = 10
     elif args.dataset == 'cifar10':
         train_data = dset.CIFAR10(args.data_path,
@@ -561,7 +587,7 @@ def perform_attack(attacker, model, model_clean, train_loader, test_loader,
     # attempt to use the training data to conduct BFA
     for _, (data, target) in enumerate(train_loader):
         if args.use_cuda:
-            target = target.cuda(async=True)
+            target = target.cuda()
             data = data.cuda()
         # Override the target to prevent label leaking
         _, target = model(data).data.max(1)
@@ -695,7 +721,6 @@ def train(train_loader, model, criterion, optimizer, epoch, log):
 
         if args.use_cuda:
             target = target.cuda(
-                async=True
             )  # the copy will be asynchronous with respect to the host.
             input = input.cuda()
 
@@ -754,7 +779,7 @@ def validate(val_loader, model, criterion, log, summary_output=False):
     with torch.no_grad():
         for i, (input, target) in enumerate(val_loader):
             if args.use_cuda:
-                target = target.cuda(async=True)
+                target = target.cuda()
                 input = input.cuda()
 
             # compute output

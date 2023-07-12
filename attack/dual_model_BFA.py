@@ -1,8 +1,8 @@
 import random
 import torch
-from BFA.models.quantization import quan_Conv2d, quan_Linear, quantize
+from models.quantization import quan_Conv2d, quan_Linear, quantize
 import operator
-from BFA.attack.data_conversion import *
+from attack.data_conversion import *
 
 
 class DualModelBFA(object):
